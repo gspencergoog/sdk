@@ -223,16 +223,19 @@ class _DartNavigationComputerVisitor extends RecursiveAstVisitor<void> {
           inToolAnnotation = false;
         } else {
           const examplePrefix = 'examples/api/';
-          var exampleStart = '** See code in $examplePrefix';
+          final exampleStart = '** See code in $examplePrefix';
           var startIndex = strValue.indexOf(exampleStart);
           if (startIndex != -1) {
             startIndex += exampleStart.length;
             const dartSuffix = '.dart';
             var endIndex = strValue.indexOf(dartSuffix) + dartSuffix.length;
             var pathSnippet = strValue.substring(startIndex, endIndex);
-            var examplePath = resourceProvider.pathContext.join(_examplesApiPath!, pathSnippet);
+            var examplePath = resourceProvider.pathContext.join(_examplesApiPath!, 'examples', 'api', pathSnippet);
+            // Adjust the range so that it includes the entire relative path in
+            // the examples link, but not the "** See code in " prefix.
             var start = token.offset + startIndex - examplePrefix.length;
             var end = token.offset + endIndex;
+            // Link to the start of the example file.
             computer.collector.addRegion(
               start,
               end - start,
@@ -591,8 +594,8 @@ class _DartNavigationComputerVisitor extends RecursiveAstVisitor<void> {
   /// Null is returned if such directories are not found.
   String? _computeParentWithExamplesAPI(
       AstNode node, ResourceProvider resourceProvider) {
-    var compUnit = node.thisOrAncestorOfType<CompilationUnit>();
-    var source = compUnit!.declaredElement?.source;
+    var compilationUnit = node.thisOrAncestorOfType<CompilationUnit>();
+    var source = compilationUnit!.declaredElement?.source;
     if (source == null) {
       return null;
     }

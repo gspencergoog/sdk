@@ -115,20 +115,20 @@ class AbstractNavigationTest extends PubPackageAnalysisServerTest {
     assertHasTarget(str, str.length);
   }
 
-  /// Validates that there is no a region at [search] and with the given
+  /// Validates that there is not a region at [search] and with the given
   /// [length].
   void assertNoRegion(String search, int length) {
     var offset = findOffset(search);
     findRegion(offset, length, false);
   }
 
-  /// Validates that there is no a region at [search] with any length.
+  /// Validates that there is not a region at [search] with any length.
   void assertNoRegionAt(String search) {
     var offset = findOffset(search);
     findRegion(offset, -1, false);
   }
 
-  /// Validates that there is no a region for [search] string.
+  /// Validates that there is not a region for [search] string.
   void assertNoRegionString(String search) {
     var offset = findOffset(search);
     var length = search.length;
@@ -150,7 +150,7 @@ class AbstractNavigationTest extends PubPackageAnalysisServerTest {
   /// If [length] is `-1`, then it is ignored.
   ///
   /// If [exists] is `true`, then fails if such region does not exist.
-  /// Otherwise remembers this it into [testRegion].
+  /// Otherwise remembers it in [testRegion].
   /// Also fills [testTargets] with its targets.
   ///
   /// If [exists] is `false`, then fails if such region exists.
@@ -1672,5 +1672,23 @@ var x;
 ''');
     await prepareNavigation();
     assertNoRegionAt('var');
+  }
+
+  Future<void> test_navigation_dart_example_api() async {
+    final exampleLinkPath = 'examples/api/lib/test_file.dart';
+    final exampleApiFile = '$workspaceRootPath/$exampleLinkPath';
+    newFile(exampleApiFile, '/// Test');
+    addTestFile('''
+/// Dartdoc comment
+/// {@tool dartpad}
+/// Example description.
+///
+/// ** See code in examples/api/lib/test_file.dart **
+/// {@end-tool}
+const int foo = 0;
+''');
+    await prepareNavigation();
+    assertHasRegion(exampleLinkPath, 31);
+    assertHasFileTarget(exampleApiFile, 0, 0);
   }
 }
