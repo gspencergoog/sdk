@@ -141,6 +141,7 @@ class _DartNavigationCollector {
 class _DartNavigationComputerVisitor extends RecursiveAstVisitor<void> {
   final ResourceProvider resourceProvider;
   final _DartNavigationCollector computer;
+  String? _examplesApiPath;
 
   _DartNavigationComputerVisitor(this.resourceProvider, this.computer);
 
@@ -192,6 +193,17 @@ class _DartNavigationComputerVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitComment(Comment node) {
+    if (!node.isDocumentation) {
+      super.visitComment(node);
+      return;
+    }
+    _examplesApiPath ??= _computeParentWithExamplesAPI(node, resourceProvider);
+    if (_examplesApiPath == null) {
+      // Examples directory doesn't exist.
+      super.visitComment(node);
+      return;
+    }
+
     for (var commentReference in node.references) {
       commentReference.accept(this);
     }
@@ -209,27 +221,32 @@ class _DartNavigationComputerVisitor extends RecursiveAstVisitor<void> {
       if (inToolAnnotation) {
         if (strValue.contains('{@end-tool}')) {
           inToolAnnotation = false;
-        } else if (strValue.contains('** See code in ')) {
-          var startIndex = strValue.indexOf('** See code in ') + 15;
-          var endIndex = strValue.indexOf('.dart') + 5;
-          var pathSnippet = strValue.substring(startIndex, endIndex);
-          var parentPath =
-              _computeParentWithExamplesAPI(node, resourceProvider);
-          if (parentPath != null) {
-            var start = token.offset + startIndex;
+        } else {
+          const examplePrefix = 'examples/api/';
+          var exampleStart = '** See code in $examplePrefix';
+          var startIndex = strValue.indexOf(exampleStart);
+          if (startIndex != -1) {
+            startIndex += exampleStart.length;
+            const dartSuffix = '.dart';
+            var endIndex = strValue.indexOf(dartSuffix) + dartSuffix.length;
+            var pathSnippet = strValue.substring(startIndex, endIndex);
+            var examplePath = resourceProvider.pathContext.join(_examplesApiPath!, pathSnippet);
+            var start = token.offset + startIndex - examplePrefix.length;
             var end = token.offset + endIndex;
             computer.collector.addRegion(
-                start,
-                end - start,
-                protocol.ElementKind.LIBRARY,
-                protocol.Location(
-                    resourceProvider.pathContext.join(parentPath, pathSnippet),
-                    0,
-                    0,
-                    0,
-                    0,
-                    endLine: 0,
-                    endColumn: 0));
+              start,
+              end - start,
+              protocol.ElementKind.LIBRARY,
+              protocol.Location(
+                examplePath,
+                0,
+                0,
+                0,
+                0,
+                endLine: 0,
+                endColumn: 0,
+              ),
+            );
           }
         }
       } else if (strValue.contains('{@tool ')) {
@@ -240,6 +257,9 @@ class _DartNavigationComputerVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitCompilationUnit(CompilationUnit unit) {
+    // Reset the examples path for this compilation unit.
+    _examplesApiPath = null;
+
     // prepare top-level nodes sorted by their offsets
     var nodes = <AstNode>[];
     nodes.addAll(unit.directives);
@@ -565,13 +585,14 @@ class _DartNavigationComputerVisitor extends RecursiveAstVisitor<void> {
     }
   }
 
-  /// Given some [Comment], compute and return the parent directory absolute
-  /// path which contains the directories 'examples/api/'. Null is returned if
-  /// such directories are not found.
+  /// Given some [AstNode], compute and return the parent directory absolute
+  /// path which contains the directories 'examples/api/'.
+  ///
+  /// Null is returned if such directories are not found.
   String? _computeParentWithExamplesAPI(
-      Comment node, ResourceProvider resourceProvider) {
-    var source =
-        node.thisOrAncestorOfType<CompilationUnit>()?.declaredElement?.source;
+      AstNode node, ResourceProvider resourceProvider) {
+    var compUnit = node.thisOrAncestorOfType<CompilationUnit>();
+    var source = compUnit!.declaredElement?.source;
     if (source == null) {
       return null;
     }

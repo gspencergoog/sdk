@@ -9,12 +9,14 @@ import 'completion/test_all.dart' as completion;
 import 'navigation_test.dart' as navigation_test;
 import 'range_factory_test.dart' as range_factory_test;
 import 'subscriptions/test_all.dart' as subscriptions;
+import 'navigation/navigation_dart_test.dart' as navigation_dart_test;
 
 void main() {
   defineReflectiveSuite(() {
     analyzer_converter_test.main();
     completion.main();
     navigation_test.main();
+    navigation_dart_test.main();
     range_factory_test.main();
     subscriptions.main();
   }, name: 'utilities');
